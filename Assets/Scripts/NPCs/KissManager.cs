@@ -11,8 +11,8 @@ namespace KissAndRun
 
         [Header("Detection Settings")]
         [SerializeField] private Transform playerTransform;
-        [SerializeField] private float kissMaxRange = 3.5f;
-        [SerializeField] private float laneTolerance = 1.2f;
+        [SerializeField] private float kissMaxRange = 4.2f;
+        [SerializeField] private float laneTolerance = 1.3f;
 
         private NPCController currentTarget;
 
@@ -34,6 +34,12 @@ namespace KissAndRun
 
         private void Update()
         {
+            // Do not search for new targets while in a cinematic close-up
+            if (KissCinematicDirector.Instance != null && KissCinematicDirector.Instance.IsInCinematic)
+            {
+                return;
+            }
+
             DetectNearbyNPC();
         }
 
@@ -41,7 +47,6 @@ namespace KissAndRun
         {
             if (playerTransform == null) return;
 
-            // Find all NPCs within range
             Collider[] hits = Physics.OverlapSphere(playerTransform.position + Vector3.forward * 1.5f, kissMaxRange);
             NPCController bestTarget = null;
             float closestZDist = float.MaxValue;
@@ -54,7 +59,6 @@ namespace KissAndRun
                     float deltaX = Mathf.Abs(npc.transform.position.x - playerTransform.position.x);
                     float deltaZ = npc.transform.position.z - playerTransform.position.z;
 
-                    // Must be in front of player and in same/adjacent lane
                     if (deltaZ > 0.3f && deltaZ < kissMaxRange && deltaX <= laneTolerance)
                     {
                         if (deltaZ < closestZDist)
@@ -80,9 +84,32 @@ namespace KissAndRun
         {
             if (currentTarget != null && currentTarget.CanBeKissed)
             {
-                currentTarget.ExecuteKissReaction();
+                NPCController targetToKiss = currentTarget;
                 currentTarget = null;
                 OnKissTargetAvailable?.Invoke(false);
+
+                // Check if this NPC reaction will be a slap
+                bool isSlap = UnityEngine.Random.value < targetToKiss.slapChance;
+
+                // Play Dramatic Slow-Mo Bullet-Time Cinematic!
+                if (KissCinematicDirector.Instance != null)
+                {
+                    KissCinematicDirector.Instance.PlayKissCinematic(
+                        playerTransform: playerTransform,
+                        npcTransform: targetToKiss.transform,
+                        onKissImpact: () => {
+                            targetToKiss.ExecuteKissReaction();
+                        },
+                        onCinematicComplete: () => {
+                            // Returned to full running gameplay
+                        },
+                        isSlap: isSlap
+                    );
+                }
+                else
+                {
+                    targetToKiss.ExecuteKissReaction();
+                }
             }
         }
     }
