@@ -17,6 +17,13 @@ namespace KissAndRun
         [SerializeField] private Slider chaserDistanceSlider;
         [SerializeField] private TextMeshProUGUI chaserLabelText;
 
+        [Header("Hoverboard & Jetpack")]
+        [SerializeField] private Button hoverboardButton;
+        [SerializeField] private GameObject hoverboardActiveBar;
+        [SerializeField] private Slider hoverboardDurationSlider;
+        [SerializeField] private GameObject jetpackActiveBar;
+        [SerializeField] private Slider jetpackProgressSlider;
+
         [Header("💋 Kiss Button")]
         [SerializeField] private Button kissButton;
         [SerializeField] private GameObject kissPulsingGlow;
@@ -36,10 +43,13 @@ namespace KissAndRun
             GameManager.OnBannerAlert += ShowBanner;
             KissManager.OnKissTargetAvailable += SetKissButtonActive;
 
-            if (kissButton)
-            {
-                kissButton.onClick.AddListener(OnKissButtonClicked);
-            }
+            HoverboardSystem.OnHoverboardStateChanged += HandleHoverboardState;
+            HoverboardSystem.OnHoverboardTimerUpdate += UpdateHoverboardTimer;
+            JetpackSystem.OnJetpackStateChanged += HandleJetpackState;
+            JetpackSystem.OnJetpackProgressUpdate += UpdateJetpackProgress;
+
+            if (kissButton) kissButton.onClick.AddListener(OnKissButtonClicked);
+            if (hoverboardButton) hoverboardButton.onClick.AddListener(OnHoverboardButtonClicked);
         }
 
         private void OnDisable()
@@ -51,10 +61,13 @@ namespace KissAndRun
             GameManager.OnBannerAlert -= ShowBanner;
             KissManager.OnKissTargetAvailable -= SetKissButtonActive;
 
-            if (kissButton)
-            {
-                kissButton.onClick.RemoveListener(OnKissButtonClicked);
-            }
+            HoverboardSystem.OnHoverboardStateChanged -= HandleHoverboardState;
+            HoverboardSystem.OnHoverboardTimerUpdate -= UpdateHoverboardTimer;
+            JetpackSystem.OnJetpackStateChanged -= HandleJetpackState;
+            JetpackSystem.OnJetpackProgressUpdate -= UpdateJetpackProgress;
+
+            if (kissButton) kissButton.onClick.RemoveListener(OnKissButtonClicked);
+            if (hoverboardButton) hoverboardButton.onClick.RemoveListener(OnHoverboardButtonClicked);
         }
 
         private void Start()
@@ -62,6 +75,8 @@ namespace KissAndRun
             SetKissButtonActive(false);
             if (bannerObject) bannerObject.SetActive(false);
             if (chaserPanel) chaserPanel.SetActive(false);
+            if (hoverboardActiveBar) hoverboardActiveBar.SetActive(false);
+            if (jetpackActiveBar) jetpackActiveBar.SetActive(false);
         }
 
         private void Update()
@@ -125,6 +140,26 @@ namespace KissAndRun
             }
         }
 
+        private void HandleHoverboardState(bool isRiding)
+        {
+            if (hoverboardActiveBar) hoverboardActiveBar.SetActive(isRiding);
+        }
+
+        private void UpdateHoverboardTimer(float progress)
+        {
+            if (hoverboardDurationSlider) hoverboardDurationSlider.value = progress;
+        }
+
+        private void HandleJetpackState(bool isFlying)
+        {
+            if (jetpackActiveBar) jetpackActiveBar.SetActive(isFlying);
+        }
+
+        private void UpdateJetpackProgress(float progress)
+        {
+            if (jetpackProgressSlider) jetpackProgressSlider.value = progress;
+        }
+
         public void SetKissButtonActive(bool active)
         {
             if (kissButton) kissButton.interactable = active;
@@ -134,6 +169,11 @@ namespace KissAndRun
         private void OnKissButtonClicked()
         {
             KissManager.Instance?.TryPerformKiss();
+        }
+
+        private void OnHoverboardButtonClicked()
+        {
+            GameManager.Instance?.Player?.SummonHoverboard();
         }
     }
 }

@@ -103,6 +103,10 @@ namespace KissAndRun
                 {
                     Instantiate(slapImpactStarsPrefab, contactPoint, Quaternion.identity);
                 }
+                else
+                {
+                    CartoonVFXFactory.Instance?.SpawnSlapStars(contactPoint);
+                }
             }
             else
             {
@@ -113,6 +117,10 @@ namespace KissAndRun
                 if (heartExplosionPrefab)
                 {
                     Instantiate(heartExplosionPrefab, contactPoint, Quaternion.identity);
+                }
+                else
+                {
+                    CartoonVFXFactory.Instance?.SpawnHeartBurst(contactPoint);
                 }
             }
 
@@ -128,7 +136,6 @@ namespace KissAndRun
             // Smooth restore camera FOV
             elapsed = 0f;
             float restoreDuration = 0.22f;
-            Vector3 exitCamPos = mainCamera.transform.position;
 
             while (elapsed < restoreDuration)
             {
@@ -147,12 +154,32 @@ namespace KissAndRun
 
         private void SpawnLipstickStamp(Transform targetTransform)
         {
-            // Stamp a glowing red lipstick kiss mark on target's cheek
+            Vector3 cheekPos = targetTransform.position + Vector3.up * 1.55f + targetTransform.right * 0.25f + targetTransform.forward * 0.25f;
+
             if (lipstickDecalPrefab)
             {
-                Vector3 cheekPos = targetTransform.position + Vector3.up * 1.6f + targetTransform.right * 0.25f;
                 GameObject stamp = Instantiate(lipstickDecalPrefab, cheekPos, targetTransform.rotation, targetTransform);
                 Destroy(stamp, 6f);
+            }
+            else
+            {
+                // Procedural lipstick kiss mark: glowing pink-red lipstick stamp on cheek!
+                GameObject stamp = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                stamp.name = "LipstickKissMark";
+                stamp.transform.parent = targetTransform;
+                stamp.transform.position = cheekPos;
+                stamp.transform.localScale = new Vector3(0.2f, 0.12f, 0.04f);
+                stamp.transform.localRotation = Quaternion.Euler(15f, -20f, -10f);
+
+                Renderer rend = stamp.GetComponent<Renderer>();
+                Material lipMat = new Material(Shader.Find("Standard"));
+                lipMat.color = new Color(1f, 0.08f, 0.42f);
+                lipMat.EnableKeyword("_EMISSION");
+                lipMat.SetColor("_EmissionColor", new Color(0.9f, 0.1f, 0.35f));
+                rend.material = lipMat;
+
+                Destroy(stamp.GetComponent<Collider>());
+                Destroy(stamp, 7f);
             }
         }
 
@@ -166,6 +193,19 @@ namespace KissAndRun
                 {
                     calloutScript.Initialize(text, color);
                 }
+            }
+            else
+            {
+                // Procedural 3D comic text callout
+                GameObject callout = new GameObject("ComicCallout");
+                callout.transform.position = worldPosition;
+                var tm = callout.AddComponent<TMPro.TextMeshPro>();
+                tm.text = text;
+                tm.color = color;
+                tm.fontSize = 8;
+                tm.alignment = TMPro.TextAlignmentOptions.Center;
+                var calloutScript = callout.AddComponent<ComicCallout3D>();
+                calloutScript.Initialize(text, color);
             }
         }
     }

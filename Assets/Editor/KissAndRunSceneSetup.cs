@@ -52,6 +52,9 @@ namespace KissAndRun.Editor
 
             player.AddComponent<SwipeDetector>();
             PlayerController playerCtrl = player.AddComponent<PlayerController>();
+            player.AddComponent<HoverboardSystem>();
+            player.AddComponent<JetpackSystem>();
+            player.AddComponent<StuntTrickSystem>();
 
             // 5. Setup Main Camera with Third-Person Follow
             GameObject cameraObj = new GameObject("Main Camera");
@@ -80,6 +83,7 @@ namespace KissAndRun.Editor
             KissManager kissManager = managers.AddComponent<KissManager>();
             KissCinematicDirector cinematicDirector = managers.AddComponent<KissCinematicDirector>();
             TrackSpawner trackSpawner = managers.AddComponent<TrackSpawner>();
+            managers.AddComponent<CharacterWardrobeCatalog>();
             managers.AddComponent<CharacterSkinManager>();
 
             // Wire references
@@ -88,6 +92,14 @@ namespace KissAndRun.Editor
             gmSerial.FindProperty("chaser").objectReferenceValue = chaserCtrl;
             gmSerial.ApplyModifiedProperties();
 
+            SerializedObject trackSerial = new SerializedObject(trackSpawner);
+            trackSerial.FindProperty("playerTransform").objectReferenceValue = player.transform;
+            trackSerial.ApplyModifiedProperties();
+
+            SerializedObject kissSerial = new SerializedObject(kissManager);
+            kissSerial.FindProperty("playerTransform").objectReferenceValue = player.transform;
+            kissSerial.ApplyModifiedProperties();
+
             // 8. Setup UI Canvas & Comic Banners
             SetupHUDCanvas(playerCtrl, chaserCtrl);
 
@@ -95,7 +107,7 @@ namespace KissAndRun.Editor
             string scenePath = "Assets/Scenes/MainGame.unity";
             EditorSceneManager.SaveScene(scene, scenePath);
             Debug.Log("<color=green><b>[Kiss & Run]</b> Complete High-Graphic 3D Runner Scene successfully generated and saved to: " + scenePath + "</color>");
-            EditorUtility.DisplayDialog("Kiss & Run 3D Scene Ready!", "High-fidelity 3D Runner Scene has been automatically built!\n\nIncludes:\n• 3-Lane Road & Street Lamps\n• Cinematic Bullet-Time Kiss Director\n• Third-Person Camera Follow & Screen Shake\n• Chaser System & Comic Popups\n\nPress PLAY (▶) to test immediately!", "Awesome!");
+            EditorUtility.DisplayDialog("Kiss & Run 3D Scene Ready!", "High-fidelity 3D Runner Scene has been automatically built!\n\nIncludes:\n• 3-Lane Road & Street Lamps\n• Hoverboard Riding & Crash Shield\n• High-Altitude Jetpack Flight\n• Aerial Stunt Tricks (Spins, Flips)\n• Cinematic Bullet-Time Kiss Director (Slow-Mo & Decals)\n• Third-Person Camera Follow & Dynamic Screen Shake\n• Chaser System & Domino Props\n• Character Wardrobe & Customizations\n\nPress PLAY (▶) to test immediately!", "Awesome!");
         }
 
         private static void CreateDetailedRoadChunk(Transform parent, float zPos)

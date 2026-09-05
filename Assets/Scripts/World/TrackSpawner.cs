@@ -5,13 +5,14 @@ namespace KissAndRun
 {
     public class TrackSpawner : MonoBehaviour
     {
-        [Header("Prefabs")]
+        [Header("Prefabs (Optional - Will procedurally generate if empty)")]
         [SerializeField] private GameObject[] trackChunkPrefabs;
         [SerializeField] private GameObject[] npcPrefabs;
         [SerializeField] private GameObject roadblockPrefab;
         [SerializeField] private GameObject overheadSignPrefab;
         [SerializeField] private GameObject bananaPeelPrefab;
         [SerializeField] private GameObject coinPrefab;
+        [SerializeField] private GameObject jumpRampPrefab;
 
         [Header("Settings")]
         [SerializeField] private Transform playerTransform;
@@ -25,6 +26,12 @@ namespace KissAndRun
 
         private void Start()
         {
+            if (playerTransform == null)
+            {
+                var p = GameObject.FindGameObjectWithTag("Player");
+                if (p != null) playerTransform = p.transform;
+            }
+
             // Spawn initial safe track segments
             for (int i = 0; i < initialChunks; i++)
             {
@@ -46,10 +53,17 @@ namespace KissAndRun
 
         private void SpawnChunk(bool spawnWithObstacles)
         {
-            if (trackChunkPrefabs == null || trackChunkPrefabs.Length == 0) return;
+            GameObject chunk;
+            if (trackChunkPrefabs != null && trackChunkPrefabs.Length > 0)
+            {
+                int randomIndex = Random.Range(0, trackChunkPrefabs.Length);
+                chunk = Instantiate(trackChunkPrefabs[randomIndex], Vector3.forward * spawnZ, Quaternion.identity, transform);
+            }
+            else
+            {
+                chunk = CreateProceduralChunk(spawnZ);
+            }
 
-            int randomIndex = Random.Range(0, trackChunkPrefabs.Length);
-            GameObject chunk = Instantiate(trackChunkPrefabs[randomIndex], Vector3.forward * spawnZ, Quaternion.identity, transform);
             activeChunks.Add(chunk);
 
             if (spawnWithObstacles)
@@ -58,6 +72,93 @@ namespace KissAndRun
             }
 
             spawnZ += chunkLength;
+        }
+
+        private GameObject CreateProceduralChunk(float zPos)
+        {
+            GameObject chunk = new GameObject("TrackChunk_Z" + zPos);
+            chunk.transform.parent = transform;
+            chunk.transform.position = new Vector3(0, 0, zPos);
+
+            // Asphalt road bed
+            GameObject road = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            road.name = "Asphalt";
+            road.transform.parent = chunk.transform;
+            road.transform.localPosition = new Vector3(0, -0.25f, 15f);
+            road.transform.localScale = new Vector3(9f, 0.5f, 30f);
+
+            Material roadMat = new Material(Shader.Find("Standard"));
+            roadMat.color = new Color(0.18f, 0.22f, 0.26f);
+            road.GetComponent<Renderer>().material = roadMat;
+
+            // Lane Divider Dashes
+            for (float z = 2.5f; z < 30f; z += 6f)
+            {
+                CreateLaneStripe(chunk.transform, -1.25f, z);
+                CreateLaneStripe(chunk.transform, 1.25f, z);
+            }
+
+            // Sidewalk Curbs
+            CreateCurb(chunk.transform, -4.75f, 15f);
+            CreateCurb(chunk.transform, 4.75f, 15f);
+
+            // Street Lamps with soft illumination
+            CreateStreetLamp(chunk.transform, -5.4f, 8f);
+            CreateStreetLamp(chunk.transform, 5.4f, 22f);
+
+            return chunk;
+        }
+
+        private void CreateLaneStripe(Transform parent, float x, float z)
+        {
+            GameObject stripe = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            stripe.name = "Stripe";
+            stripe.transform.parent = parent;
+            stripe.transform.localPosition = new Vector3(x, 0.02f, z);
+            stripe.transform.localScale = new Vector3(0.2f, 0.05f, 2.5f);
+
+            Material stripeMat = new Material(Shader.Find("Standard"));
+            stripeMat.color = Color.white;
+            stripe.GetComponent<Renderer>().material = stripeMat;
+            Destroy(stripe.GetComponent<Collider>());
+        }
+
+        private void CreateCurb(Transform parent, float x, float z)
+        {
+            GameObject curb = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            curb.name = "Curb";
+            curb.transform.parent = parent;
+            curb.transform.localPosition = new Vector3(x, 0.15f, z);
+            curb.transform.localScale = new Vector3(0.6f, 0.8f, 30f);
+
+            Material curbMat = new Material(Shader.Find("Standard"));
+            curbMat.color = new Color(0.9f, 0.28f, 0.42f);
+            curb.GetComponent<Renderer>().material = curbMat;
+        }
+
+        private void CreateStreetLamp(Transform parent, float x, float z)
+        {
+            GameObject lamp = new GameObject("StreetLamp");
+            lamp.transform.parent = parent;
+            lamp.transform.localPosition = new Vector3(x, 0f, z);
+
+            GameObject pole = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pole.transform.parent = lamp.transform;
+            pole.transform.localPosition = new Vector3(0, 3f, 0);
+            pole.transform.localScale = new Vector3(0.12f, 3f, 0.12f);
+            Destroy(pole.GetComponent<Collider>());
+
+            GameObject bulb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            bulb.transform.parent = lamp.transform;
+            bulb.transform.localPosition = new Vector3(x < 0 ? 0.6f : -0.6f, 6.2f, 0);
+            bulb.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+            Destroy(bulb.GetComponent<Collider>());
+
+            Material bulbMat = new Material(Shader.Find("Standard"));
+            bulbMat.color = new Color(1f, 0.95f, 0.5f);
+            bulbMat.EnableKeyword("_EMISSION");
+            bulbMat.SetColor("_EmissionColor", new Color(1f, 0.9f, 0.4f));
+            bulb.GetComponent<Renderer>().material = bulbMat;
         }
 
         private void PopulateChunk(GameObject chunk, float currentZ)
@@ -72,8 +173,12 @@ namespace KissAndRun
                 Vector3 npcPos = new Vector3(npcLaneX, 0f, currentZ + chunkLength * 0.5f);
                 Instantiate(npcPrefab, npcPos, Quaternion.Euler(0, 180, 0), chunk.transform);
             }
+            else
+            {
+                CreateProceduralNPC(chunk.transform, npcLaneX, currentZ + chunkLength * 0.5f);
+            }
 
-            // 2. Place Obstacles in other lanes (Roadblock or Overhead barrier)
+            // 2. Place Obstacles, Ramps, or Props in other lanes
             for (int i = 0; i < 3; i++)
             {
                 if (i == npcLaneIndex) continue; // Keep NPC lane clear to kiss
@@ -82,33 +187,196 @@ namespace KissAndRun
                 float laneX = lanePositions[i];
                 Vector3 obsPos = new Vector3(laneX, 0f, currentZ + chunkLength * 0.5f);
 
-                if (r < 0.40f && roadblockPrefab)
+                if (r < 0.28f)
                 {
-                    Instantiate(roadblockPrefab, obsPos, Quaternion.identity, chunk.transform);
+                    // 3D Jump Ramp (Launches player into stunt trick!)
+                    CreateProceduralJumpRamp(chunk.transform, laneX, currentZ + 12f);
                 }
-                else if (r < 0.75f && overheadSignPrefab)
+                else if (r < 0.55f)
                 {
-                    Instantiate(overheadSignPrefab, obsPos, Quaternion.identity, chunk.transform);
+                    // Low Hurdle (Jump over!)
+                    CreateProceduralHurdle(chunk.transform, laneX, currentZ + 15f);
                 }
-                else if (r < 0.90f && bananaPeelPrefab)
+                else if (r < 0.80f)
                 {
-                    Instantiate(bananaPeelPrefab, obsPos, Quaternion.identity, chunk.transform);
+                    // Overhead Banner (Slide under!)
+                    CreateProceduralOverheadSign(chunk.transform, laneX, currentZ + 15f);
+                }
+                else
+                {
+                    // Domino Crates (Crash prop!)
+                    CreateProceduralDominoCrate(chunk.transform, laneX, currentZ + 15f);
                 }
             }
 
-            // 3. Place Coin Arcs in free lanes
-            if (coinPrefab)
+            // 3. Place Coin Arcs in a lane
+            int coinLaneIndex = Random.Range(0, 3);
+            float coinX = lanePositions[coinLaneIndex];
+            for (int c = 0; c < 4; c++)
             {
-                int coinLaneIndex = Random.Range(0, 3);
-                float coinX = lanePositions[coinLaneIndex];
-
-                for (int c = 0; c < 4; c++)
-                {
-                    float arcY = Mathf.Sin((c / 3f) * Mathf.PI) * 2f;
-                    Vector3 coinPos = new Vector3(coinX, 0.5f + arcY, currentZ + 5f + (c * 3f));
-                    Instantiate(coinPrefab, coinPos, Quaternion.identity, chunk.transform);
-                }
+                float arcY = Mathf.Sin((c / 3f) * Mathf.PI) * 2f;
+                Vector3 coinPos = new Vector3(coinX, 0.6f + arcY, currentZ + 5f + (c * 3f));
+                CreateProceduralCoin(chunk.transform, coinPos);
             }
+
+            // 4. Occasional Power-up Item (18% chance)
+            if (Random.value < 0.18f)
+            {
+                int powerLane = Random.Range(0, 3);
+                Vector3 powerPos = new Vector3(lanePositions[powerLane], 1.2f, currentZ + 22f);
+                CreateProceduralPowerUp(chunk.transform, powerPos);
+            }
+        }
+
+        private void CreateProceduralNPC(Transform parent, float x, float z)
+        {
+            GameObject npcObj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            npcObj.name = "NPC_Pedestrian";
+            npcObj.transform.parent = parent;
+            npcObj.transform.position = new Vector3(x, 1f, z);
+            npcObj.transform.rotation = Quaternion.Euler(0, 180, 0);
+
+            Material mat = new Material(Shader.Find("Standard"));
+            Color[] npcColors = new Color[] {
+                new Color(1f, 0.4f, 0.7f),  // Pink
+                new Color(0.3f, 0.8f, 1f),  // Cyan
+                new Color(1f, 0.85f, 0.2f), // Yellow
+                new Color(0.6f, 0.3f, 0.9f) // Purple
+            };
+            mat.color = npcColors[Random.Range(0, npcColors.Length)];
+            npcObj.GetComponent<Renderer>().material = mat;
+
+            // Head / Hair Sphere
+            GameObject hair = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            hair.transform.parent = npcObj.transform;
+            hair.transform.localPosition = new Vector3(0, 0.8f, 0);
+            hair.transform.localScale = new Vector3(0.9f, 0.7f, 0.9f);
+            Material hairMat = new Material(Shader.Find("Standard"));
+            hairMat.color = new Color(0.2f, 0.12f, 0.05f);
+            hair.GetComponent<Renderer>().material = hairMat;
+            Destroy(hair.GetComponent<Collider>());
+
+            // Glowing Kiss Halo Prompt
+            GameObject halo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            halo.name = "KissHaloPrompt";
+            halo.transform.parent = npcObj.transform;
+            halo.transform.localPosition = new Vector3(0, 1.35f, 0);
+            halo.transform.localScale = new Vector3(0.7f, 0.04f, 0.7f);
+            Material haloMat = new Material(Shader.Find("Standard"));
+            haloMat.color = new Color(1f, 0.1f, 0.5f);
+            haloMat.EnableKeyword("_EMISSION");
+            haloMat.SetColor("_EmissionColor", new Color(1f, 0.2f, 0.6f));
+            halo.GetComponent<Renderer>().material = haloMat;
+            Destroy(halo.GetComponent<Collider>());
+
+            NPCController npcCtrl = npcObj.AddComponent<NPCController>();
+            npcCtrl.npcName = "Stunner";
+        }
+
+        private void CreateProceduralJumpRamp(Transform parent, float x, float z)
+        {
+            GameObject ramp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ramp.name = "JumpRamp";
+            ramp.transform.parent = parent;
+            ramp.transform.position = new Vector3(x, 0.4f, z);
+            ramp.transform.rotation = Quaternion.Euler(22f, 0, 0);
+            ramp.transform.localScale = new Vector3(2.2f, 0.3f, 2.8f);
+
+            Material rampMat = new Material(Shader.Find("Standard"));
+            rampMat.color = new Color(1f, 0.75f, 0.05f);
+            rampMat.EnableKeyword("_EMISSION");
+            rampMat.SetColor("_EmissionColor", new Color(0.7f, 0.5f, 0f));
+            ramp.GetComponent<Renderer>().material = rampMat;
+
+            ramp.GetComponent<Collider>().isTrigger = true;
+            ramp.AddComponent<JumpRamp>();
+        }
+
+        private void CreateProceduralHurdle(Transform parent, float x, float z)
+        {
+            GameObject hurdle = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            hurdle.name = "Hurdle_Low";
+            hurdle.transform.parent = parent;
+            hurdle.transform.position = new Vector3(x, 0.5f, z);
+            hurdle.transform.localScale = new Vector3(2.2f, 0.9f, 0.4f);
+
+            Material mat = new Material(Shader.Find("Standard"));
+            mat.color = new Color(0.9f, 0.15f, 0.15f);
+            hurdle.GetComponent<Renderer>().material = mat;
+
+            hurdle.GetComponent<Collider>().isTrigger = true;
+            Obstacle obs = hurdle.AddComponent<Obstacle>();
+            obs.obstacleType = ObstacleType.RoadblockLow;
+        }
+
+        private void CreateProceduralOverheadSign(Transform parent, float x, float z)
+        {
+            GameObject sign = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            sign.name = "Overhead_Barrier";
+            sign.transform.parent = parent;
+            sign.transform.position = new Vector3(x, 2.1f, z);
+            sign.transform.localScale = new Vector3(2.4f, 0.7f, 0.3f);
+
+            Material mat = new Material(Shader.Find("Standard"));
+            mat.color = new Color(0.95f, 0.55f, 0.1f);
+            sign.GetComponent<Renderer>().material = mat;
+
+            sign.GetComponent<Collider>().isTrigger = true;
+            Obstacle obs = sign.AddComponent<Obstacle>();
+            obs.obstacleType = ObstacleType.OverheadBarrier;
+        }
+
+        private void CreateProceduralDominoCrate(Transform parent, float x, float z)
+        {
+            GameObject crate = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            crate.name = "DominoCrate";
+            crate.transform.parent = parent;
+            crate.transform.position = new Vector3(x, 0.6f, z);
+            crate.transform.localScale = new Vector3(1.2f, 1.2f, 1.2f);
+
+            Material mat = new Material(Shader.Find("Standard"));
+            mat.color = new Color(0.6f, 0.4f, 0.2f);
+            crate.GetComponent<Renderer>().material = mat;
+
+            crate.GetComponent<Collider>().isTrigger = true;
+            crate.AddComponent<DominoCrashProp>();
+        }
+
+        private void CreateProceduralCoin(Transform parent, Vector3 pos)
+        {
+            GameObject coin = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            coin.name = "HeartCoin";
+            coin.transform.parent = parent;
+            coin.transform.position = pos;
+            coin.transform.rotation = Quaternion.Euler(90f, 0, 0);
+            coin.transform.localScale = new Vector3(0.5f, 0.08f, 0.5f);
+
+            Material mat = new Material(Shader.Find("Standard"));
+            mat.color = new Color(1f, 0.85f, 0.1f);
+            mat.EnableKeyword("_EMISSION");
+            mat.SetColor("_EmissionColor", new Color(0.9f, 0.7f, 0.05f));
+            coin.GetComponent<Renderer>().material = mat;
+
+            coin.GetComponent<Collider>().isTrigger = true;
+            coin.AddComponent<HeartCoin>();
+        }
+
+        private void CreateProceduralPowerUp(Transform parent, Vector3 pos)
+        {
+            GameObject orb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            orb.name = "PowerUp_Orb";
+            orb.transform.parent = parent;
+            orb.transform.position = pos;
+            orb.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
+
+            Material mat = new Material(Shader.Find("Standard"));
+            mat.color = new Color(0.1f, 0.9f, 1f);
+            mat.EnableKeyword("_EMISSION");
+            mat.SetColor("_EmissionColor", new Color(0.1f, 0.8f, 1f));
+            orb.GetComponent<Renderer>().material = mat;
+
+            orb.GetComponent<Collider>().isTrigger = true;
+            PowerUpItem item = orb.AddComponent<PowerUpItem>();
         }
 
         private void RecycleOldestChunk()

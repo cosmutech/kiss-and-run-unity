@@ -7,15 +7,20 @@ namespace KissAndRun
     public class PlayerController : MonoBehaviour
     {
         [Header("Movement & 3-Lane Grid")]
-        [SerializeField] private float forwardSpeed = 12f;
+        [SerializeField] private float forwardSpeed = 12.5f;
         [SerializeField] private float laneDistance = 2.5f; // Distance between lanes
         [SerializeField] private float laneChangeSpeed = 16f;
-        [SerializeField] private float laneBankAngle = 12f; // Tilt when banking
+        [SerializeField] private float laneBankAngle = 14f; // Tilt when banking
 
         [Header("Jump & Slide")]
-        [SerializeField] private float jumpForce = 9f;
+        [SerializeField] private float jumpForce = 9.5f;
         [SerializeField] private float gravity = 24f;
         [SerializeField] private float slideDuration = 0.7f;
+
+        [Header("Subsystems")]
+        [SerializeField] private HoverboardSystem hoverboard;
+        [SerializeField] private JetpackSystem jetpack;
+        [SerializeField] private StuntTrickSystem stuntSystem;
 
         private CharacterController controller;
         private Animator animator;
@@ -26,6 +31,10 @@ namespace KissAndRun
         private bool isSliding = false;
         private float originalHeight;
         private Vector3 originalCenter;
+
+        // Double-tap timer for hoverboard
+        private float lastTapTime = 0f;
+        private const float doubleTapThreshold = 0.35f;
 
         // Buff Timers
         public bool HasShield { get; set; }
@@ -42,6 +51,10 @@ namespace KissAndRun
         {
             controller = GetComponent<CharacterController>();
             animator = GetComponentInChildren<Animator>();
+            if (hoverboard == null) hoverboard = GetComponentInChildren<HoverboardSystem>();
+            if (jetpack == null) jetpack = GetComponentInChildren<JetpackSystem>();
+            if (stuntSystem == null) stuntSystem = GetComponentInChildren<StuntTrickSystem>();
+
             originalHeight = controller.height;
             originalCenter = controller.center;
         }
@@ -52,6 +65,7 @@ namespace KissAndRun
             SwipeDetector.OnSwipeRight += MoveRight;
             SwipeDetector.OnSwipeUp += Jump;
             SwipeDetector.OnSwipeDown += Slide;
+            SwipeDetector.OnTap += HandleTap;
         }
 
         private void OnDisable()
@@ -60,6 +74,7 @@ namespace KissAndRun
             SwipeDetector.OnSwipeRight -= MoveRight;
             SwipeDetector.OnSwipeUp -= Jump;
             SwipeDetector.OnSwipeDown -= Slide;
+            SwipeDetector.OnTap -= HandleTap;
         }
 
         private void Update()
@@ -78,11 +93,14 @@ namespace KissAndRun
 
         private void HandleMovement()
         {
+            // If flying with Jetpack, vertical position is handled by JetpackSystem
+            if (jetpack != null && jetpack.IsFlying) return;
+
             // 1. Calculate target lane position
             float targetX = currentLane * laneDistance;
             float newX = Mathf.Lerp(transform.position.x, targetX, Time.deltaTime * laneChangeSpeed);
 
-            // 2. Dynamic tilt roll into turns (Subway Surfers feel!)
+            // 2. Dynamic tilt roll into turns (Subway Surfers dynamic banking!)
             float deltaX = targetX - transform.position.x;
             float targetTilt = -deltaX * laneBankAngle;
             transform.rotation = Quaternion.Euler(0, 0, targetTilt);
@@ -99,7 +117,8 @@ namespace KissAndRun
 
             // 4. Forward speed
             float speed = forwardSpeed;
-            if (HasSpeedBoost) speed *= 1.4f;
+            if (HasSpeedBoost) speed *= 1.45f;
+            if (hoverboard != null && hoverboard.IsRiding) speed *= 1.15f;
             if (SlowMoTimer > 0) speed *= 0.8f;
 
             Vector3 moveDirection = new Vector3(newX - transform.position.x, verticalVelocity * Time.deltaTime, speed * Time.deltaTime);
@@ -131,6 +150,12 @@ namespace KissAndRun
                 verticalVelocity = jumpForce;
                 if (animator) animator.SetTrigger("Jump");
                 PlaySound("jump");
+
+                // Chance to trigger stunt trick in air!
+                if (stuntSystem != null && Random.value < 0.45f)
+                {
+                    stuntSystem.TryPerformJumpStunt();
+                }
             }
         }
 
@@ -138,12 +163,31 @@ namespace KissAndRun
         {
             if (!controller.isGrounded)
             {
-                // Fast drop down from jump
-                verticalVelocity = -jumpForce * 1.5f;
+                // Fast dive down from jump (Subway Surfers feel!)
+                verticalVelocity = -jumpForce * 1.6f;
             }
             if (!isSliding)
             {
                 StartCoroutine(SlideRoutine());
+            }
+        }
+
+        private void HandleTap()
+        {
+            float timeSinceLastTap = Time.time - lastTapTime;
+            if (timeSinceLastTap <= doubleTapThreshold)
+            {
+                // DOUBLE-TAP: Summon Hoverboard! (Subway Surfers signature move!)
+                SummonHoverboard();
+            }
+            lastTapTime = Time.time;
+        }
+
+        public void SummonHoverboard()
+        {
+            if (hoverboard != null && !hoverboard.IsRiding)
+            {
+                hoverboard.ActivateBoard();
             }
         }
 
@@ -169,6 +213,14 @@ namespace KissAndRun
         {
             if (IsInvincible) return;
 
+            // 1. Hoverboard Crash Protection (Saves the player's life!)
+            if (hoverboard != null && hoverboard.IsRiding)
+            {
+                hoverboard.TryAbsorbCrash();
+                return;
+            }
+
+            // 2. Heart Shield Protection
             if (HasShield)
             {
                 HasShield = false;
@@ -177,6 +229,7 @@ namespace KissAndRun
                 return;
             }
 
+            // 3. Stumble damage
             InvincibleTimer = 1.8f;
             if (animator) animator.SetTrigger("Stumble");
             PlaySound("slap");
