@@ -160,6 +160,19 @@ namespace KissAndRun.Editor
             // Street Lamps on sidewalks with real lights
             CreateStreetLamp(chunk.transform, -5.4f, 10f);
             CreateStreetLamp(chunk.transform, 5.4f, 25f);
+
+            // Spawn Multiple NPCs and Sidewalk Spectators on active chunks
+            if (zPos >= 30f)
+            {
+                NPCType typeA = (NPCType)(((int)zPos / 30) % 10);
+                NPCType typeB = (NPCType)((((int)zPos / 30) + 3) % 10);
+
+                CreateSceneNPC(chunk.transform, -2.5f, zPos + 10f, typeA);
+                CreateSceneNPC(chunk.transform, 2.5f, zPos + 22f, typeB);
+
+                CreateSceneSpectator(chunk.transform, -4.85f, zPos + 8f);
+                CreateSceneSpectator(chunk.transform, 4.85f, zPos + 18f);
+            }
         }
 
         private static void CreateLaneStripe(Transform parent, float x, float z)
@@ -210,6 +223,61 @@ namespace KissAndRun.Editor
             pLight.color = new Color(1f, 0.92f, 0.7f);
             pLight.range = 8f;
             pLight.intensity = 1.2f;
+        }
+
+        private static void CreateSceneNPC(Transform parent, float x, float z, NPCType type)
+        {
+            GameObject npcObj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            npcObj.name = "NPC_" + type.ToString();
+            npcObj.transform.parent = parent;
+            npcObj.transform.position = new Vector3(x, 1f, z);
+            npcObj.transform.rotation = Quaternion.Euler(0, 180, 0);
+
+            NPCController npcCtrl = npcObj.AddComponent<NPCController>();
+            npcCtrl.ConfigureArchetype(type);
+
+            Color outfitColor = type == NPCType.GymBro ? Color.red : (type == NPCType.BusinessExec ? new Color(0.12f, 0.18f, 0.32f) : new Color(1f, 0.25f, 0.6f));
+            npcObj.GetComponent<Renderer>().material = CreateStylizedMaterial(outfitColor, Color.white);
+
+            // Hair
+            GameObject hair = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            hair.transform.parent = npcObj.transform;
+            hair.transform.localPosition = new Vector3(0, 0.8f, 0);
+            hair.transform.localScale = new Vector3(0.9f, 0.7f, 0.9f);
+            hair.GetComponent<Renderer>().material = CreateStylizedMaterial(new Color(0.2f, 0.12f, 0.05f), Color.white);
+            Object.DestroyImmediate(hair.GetComponent<Collider>());
+
+            // Halo prompt
+            GameObject halo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            halo.name = "KissHaloPrompt";
+            halo.transform.parent = npcObj.transform;
+            halo.transform.localPosition = new Vector3(0, 1.35f, 0);
+            halo.transform.localScale = new Vector3(0.7f, 0.04f, 0.7f);
+            Color haloColor = (type == NPCType.GymBro || type == NPCType.PoliceCadet) ? Color.red : new Color(1f, 0.1f, 0.5f);
+            halo.GetComponent<Renderer>().material = CreateStylizedMaterial(haloColor, Color.white, haloColor);
+            Object.DestroyImmediate(halo.GetComponent<Collider>());
+        }
+
+        private static void CreateSceneSpectator(Transform parent, float x, float z)
+        {
+            GameObject spectator = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            spectator.name = "Spectator_Crowd";
+            spectator.transform.parent = parent;
+            spectator.transform.position = new Vector3(x, 1f, z);
+            spectator.transform.localScale = new Vector3(0.8f, 0.85f, 0.8f);
+            spectator.transform.rotation = Quaternion.Euler(0, x < 0 ? 90f : -90f, 0);
+
+            spectator.GetComponent<Renderer>().material = CreateStylizedMaterial(new Color(0.2f, 0.7f, 0.95f), Color.white);
+            Object.DestroyImmediate(spectator.GetComponent<Collider>());
+
+            GameObject head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            head.transform.parent = spectator.transform;
+            head.transform.localPosition = new Vector3(0, 0.75f, 0);
+            head.transform.localScale = new Vector3(0.85f, 0.7f, 0.85f);
+            head.GetComponent<Renderer>().material = CreateStylizedMaterial(new Color(0.3f, 0.2f, 0.1f), Color.white);
+            Object.DestroyImmediate(head.GetComponent<Collider>());
+
+            spectator.AddComponent<SpectatorCheer>();
         }
 
         private static void SetupHUDCanvas(PlayerController player, ChaserController chaser)

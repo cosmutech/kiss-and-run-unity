@@ -159,107 +159,185 @@ namespace KissAndRun
 
         private void PopulateChunk(GameObject chunk, float currentZ)
         {
-            // 1. Pick a lane for an NPC encounter
-            int npcLaneIndex = Random.Range(0, 3);
-            float npcLaneX = lanePositions[npcLaneIndex];
+            // 1. Pick lanes for Multiple NPC Encounters in this segment
+            int firstNpcLane = Random.Range(0, 3);
+            int secondNpcLane = (firstNpcLane + Random.Range(1, 3)) % 3;
 
-            if (npcPrefabs != null && npcPrefabs.Length > 0)
-            {
-                GameObject npcPrefab = npcPrefabs[Random.Range(0, npcPrefabs.Length)];
-                Vector3 npcPos = new Vector3(npcLaneX, 0f, currentZ + chunkLength * 0.5f);
-                Instantiate(npcPrefab, npcPos, Quaternion.Euler(0, 180, 0), chunk.transform);
-            }
-            else
-            {
-                CreateProceduralNPC(chunk.transform, npcLaneX, currentZ + chunkLength * 0.5f);
-            }
+            // Spawn Primary NPC at Z+9
+            NPCType type1 = (NPCType)Random.Range(0, System.Enum.GetValues(typeof(NPCType)).Length);
+            CreateProceduralNPC(chunk.transform, lanePositions[firstNpcLane], currentZ + 9f, type1);
 
-            // 2. Place Obstacles, Ramps, or Props in other lanes
+            // Spawn Secondary NPC at Z+22 (Different archetype!)
+            NPCType type2 = (NPCType)Random.Range(0, System.Enum.GetValues(typeof(NPCType)).Length);
+            CreateProceduralNPC(chunk.transform, lanePositions[secondNpcLane], currentZ + 22f, type2);
+
+            // 2. Sidewalk Spectators (Cheering crowds lining the road!)
+            CreateSidewalkSpectator(chunk.transform, -4.85f, currentZ + 6f);
+            CreateSidewalkSpectator(chunk.transform, -4.85f, currentZ + 20f);
+            CreateSidewalkSpectator(chunk.transform, 4.85f, currentZ + 12f);
+            CreateSidewalkSpectator(chunk.transform, 4.85f, currentZ + 26f);
+
+            // 3. Place Obstacles, Ramps, or Props in lanes that don't directly overlap NPCs
             for (int i = 0; i < 3; i++)
             {
-                if (i == npcLaneIndex) continue; // Keep NPC lane clear to kiss
-
                 float r = Random.value;
                 float laneX = lanePositions[i];
-                Vector3 obsPos = new Vector3(laneX, 0f, currentZ + chunkLength * 0.5f);
 
-                if (r < 0.28f)
+                if (i != firstNpcLane && r < 0.35f)
                 {
                     // 3D Jump Ramp (Launches player into stunt trick!)
-                    CreateProceduralJumpRamp(chunk.transform, laneX, currentZ + 12f);
+                    CreateProceduralJumpRamp(chunk.transform, laneX, currentZ + 9f);
                 }
-                else if (r < 0.55f)
+                else if (i != secondNpcLane && r < 0.65f)
                 {
                     // Low Hurdle (Jump over!)
-                    CreateProceduralHurdle(chunk.transform, laneX, currentZ + 15f);
+                    CreateProceduralHurdle(chunk.transform, laneX, currentZ + 16f);
                 }
-                else if (r < 0.80f)
+                else if (r < 0.85f)
                 {
                     // Overhead Banner (Slide under!)
-                    CreateProceduralOverheadSign(chunk.transform, laneX, currentZ + 15f);
+                    CreateProceduralOverheadSign(chunk.transform, laneX, currentZ + 16f);
                 }
                 else
                 {
                     // Domino Crates (Crash prop!)
-                    CreateProceduralDominoCrate(chunk.transform, laneX, currentZ + 15f);
+                    CreateProceduralDominoCrate(chunk.transform, laneX, currentZ + 16f);
                 }
             }
 
-            // 3. Place Coin Arcs in a lane
+            // 4. Place Coin Arcs in a free lane
             int coinLaneIndex = Random.Range(0, 3);
             float coinX = lanePositions[coinLaneIndex];
             for (int c = 0; c < 4; c++)
             {
                 float arcY = Mathf.Sin((c / 3f) * Mathf.PI) * 2f;
-                Vector3 coinPos = new Vector3(coinX, 0.6f + arcY, currentZ + 5f + (c * 3f));
+                Vector3 coinPos = new Vector3(coinX, 0.6f + arcY, currentZ + 3f + (c * 3.2f));
                 CreateProceduralCoin(chunk.transform, coinPos);
             }
 
-            // 4. Occasional Power-up Item (18% chance)
-            if (Random.value < 0.18f)
+            // 5. Occasional Power-up Item (20% chance)
+            if (Random.value < 0.20f)
             {
                 int powerLane = Random.Range(0, 3);
-                Vector3 powerPos = new Vector3(lanePositions[powerLane], 1.2f, currentZ + 22f);
+                Vector3 powerPos = new Vector3(lanePositions[powerLane], 1.2f, currentZ + 27f);
                 CreateProceduralPowerUp(chunk.transform, powerPos);
             }
         }
 
-        private void CreateProceduralNPC(Transform parent, float x, float z)
+        private void CreateProceduralNPC(Transform parent, float x, float z, NPCType type)
         {
             GameObject npcObj = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            npcObj.name = "NPC_Pedestrian";
+            npcObj.name = "NPC_" + type.ToString();
             npcObj.transform.parent = parent;
             npcObj.transform.position = new Vector3(x, 1f, z);
             npcObj.transform.rotation = Quaternion.Euler(0, 180, 0);
 
-            Color[] npcColors = new Color[] {
-                new Color(1f, 0.4f, 0.7f),  // Pink
-                new Color(0.3f, 0.8f, 1f),  // Cyan
-                new Color(1f, 0.85f, 0.2f), // Yellow
-                new Color(0.6f, 0.3f, 0.9f) // Purple
-            };
-            Color chosenColor = npcColors[Random.Range(0, npcColors.Length)];
-            npcObj.GetComponent<Renderer>().material = CreateToonMaterial(chosenColor, Color.white);
+            // Configure Archetype Logic & Dialogues
+            NPCController npcCtrl = npcObj.AddComponent<NPCController>();
+            npcCtrl.ConfigureArchetype(type);
 
-            // Head / Hair Sphere
+            // Visual Styling based on Archetype
+            Color outfitColor = Color.magenta;
+            Color hairColor = new Color(0.2f, 0.12f, 0.05f);
+
+            switch (type)
+            {
+                case NPCType.Cheerleader:
+                    outfitColor = new Color(1f, 0.25f, 0.6f);
+                    hairColor = new Color(1f, 0.85f, 0.3f); // Blonde
+                    break;
+                case NPCType.GymBro:
+                    outfitColor = new Color(0.9f, 0.15f, 0.15f);
+                    hairColor = new Color(0.1f, 0.1f, 0.1f);
+                    npcObj.transform.localScale = new Vector3(1.15f, 1.05f, 1.15f); // Muscular build
+                    break;
+                case NPCType.GothGirl:
+                    outfitColor = new Color(0.15f, 0.12f, 0.2f);
+                    hairColor = new Color(0.4f, 0.1f, 0.5f); // Purple
+                    break;
+                case NPCType.Influencer:
+                    outfitColor = new Color(0.1f, 0.9f, 0.85f);
+                    hairColor = new Color(0.9f, 0.5f, 0.3f);
+                    break;
+                case NPCType.BusinessExec:
+                    outfitColor = new Color(0.12f, 0.18f, 0.32f); // Navy suit
+                    hairColor = new Color(0.3f, 0.3f, 0.35f);
+                    break;
+                case NPCType.Teacher:
+                    outfitColor = new Color(0.15f, 0.5f, 0.25f);
+                    hairColor = new Color(0.45f, 0.25f, 0.15f);
+                    break;
+                case NPCType.Granny:
+                    outfitColor = new Color(0.7f, 0.5f, 0.8f);
+                    hairColor = new Color(0.9f, 0.9f, 0.92f); // White hair
+                    break;
+                case NPCType.Skater:
+                    outfitColor = new Color(1f, 0.5f, 0.05f);
+                    hairColor = new Color(0.6f, 0.35f, 0.1f);
+                    break;
+                case NPCType.PoliceCadet:
+                    outfitColor = new Color(0.08f, 0.25f, 0.7f);
+                    hairColor = new Color(0.2f, 0.15f, 0.1f);
+                    break;
+                case NPCType.Sweetheart:
+                    outfitColor = new Color(1f, 0.4f, 0.8f);
+                    hairColor = new Color(0.85f, 0.55f, 0.2f);
+                    break;
+            }
+
+            npcObj.GetComponent<Renderer>().material = CreateToonMaterial(outfitColor, Color.white);
+
+            // Head / Hair Mesh
             GameObject hair = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             hair.transform.parent = npcObj.transform;
             hair.transform.localPosition = new Vector3(0, 0.8f, 0);
             hair.transform.localScale = new Vector3(0.9f, 0.7f, 0.9f);
-            hair.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.2f, 0.12f, 0.05f), new Color(0.4f, 0.3f, 0.2f));
+            hair.GetComponent<Renderer>().material = CreateToonMaterial(hairColor, Color.white);
             Destroy(hair.GetComponent<Collider>());
 
-            // Glowing Kiss Halo Prompt
+            // Glowing 💋 Kiss Halo Prompt
             GameObject halo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             halo.name = "KissHaloPrompt";
             halo.transform.parent = npcObj.transform;
             halo.transform.localPosition = new Vector3(0, 1.35f, 0);
             halo.transform.localScale = new Vector3(0.7f, 0.04f, 0.7f);
-            halo.GetComponent<Renderer>().material = CreateToonMaterial(new Color(1f, 0.1f, 0.5f), Color.white, new Color(1f, 0.2f, 0.6f));
+            Color haloColor = (type == NPCType.GymBro || type == NPCType.PoliceCadet) ? Color.red : new Color(1f, 0.1f, 0.5f);
+            halo.GetComponent<Renderer>().material = CreateToonMaterial(haloColor, Color.white, haloColor);
             Destroy(halo.GetComponent<Collider>());
+        }
 
-            NPCController npcCtrl = npcObj.AddComponent<NPCController>();
-            npcCtrl.npcName = "Stunner";
+        private void CreateSidewalkSpectator(Transform parent, float x, float z)
+        {
+            GameObject spectator = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            spectator.name = "Spectator_Crowd";
+            spectator.transform.parent = parent;
+            spectator.transform.position = new Vector3(x, 1f, z);
+            spectator.transform.localScale = new Vector3(0.8f, 0.85f, 0.8f);
+
+            // Face toward road
+            spectator.transform.rotation = Quaternion.Euler(0, x < 0 ? 90f : -90f, 0);
+
+            Color[] crowdColors = new Color[] {
+                new Color(0.95f, 0.35f, 0.2f),
+                new Color(0.2f, 0.7f, 0.95f),
+                new Color(0.95f, 0.8f, 0.15f),
+                new Color(0.4f, 0.85f, 0.3f),
+                new Color(0.8f, 0.3f, 0.85f)
+            };
+            Color shirtColor = crowdColors[Random.Range(0, crowdColors.Length)];
+            spectator.GetComponent<Renderer>().material = CreateToonMaterial(shirtColor, Color.white);
+            Destroy(spectator.GetComponent<Collider>());
+
+            // Head
+            GameObject head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            head.transform.parent = spectator.transform;
+            head.transform.localPosition = new Vector3(0, 0.75f, 0);
+            head.transform.localScale = new Vector3(0.85f, 0.7f, 0.85f);
+            head.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.3f, 0.2f, 0.1f), Color.white);
+            Destroy(head.GetComponent<Collider>());
+
+            // Cheering bob motion component
+            spectator.AddComponent<SpectatorCheer>();
         }
 
         private void CreateProceduralJumpRamp(Transform parent, float x, float z)
