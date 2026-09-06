@@ -86,10 +86,7 @@ namespace KissAndRun
             road.transform.parent = chunk.transform;
             road.transform.localPosition = new Vector3(0, -0.25f, 15f);
             road.transform.localScale = new Vector3(9f, 0.5f, 30f);
-
-            Material roadMat = new Material(Shader.Find("Standard"));
-            roadMat.color = new Color(0.18f, 0.22f, 0.26f);
-            road.GetComponent<Renderer>().material = roadMat;
+            road.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.18f, 0.22f, 0.26f), new Color(0.4f, 0.45f, 0.5f));
 
             // Lane Divider Dashes
             for (float z = 2.5f; z < 30f; z += 6f)
@@ -117,9 +114,7 @@ namespace KissAndRun
             stripe.transform.localPosition = new Vector3(x, 0.02f, z);
             stripe.transform.localScale = new Vector3(0.2f, 0.05f, 2.5f);
 
-            Material stripeMat = new Material(Shader.Find("Standard"));
-            stripeMat.color = Color.white;
-            stripe.GetComponent<Renderer>().material = stripeMat;
+            stripe.GetComponent<Renderer>().material = CreateToonMaterial(Color.white, Color.white);
             Destroy(stripe.GetComponent<Collider>());
         }
 
@@ -131,9 +126,7 @@ namespace KissAndRun
             curb.transform.localPosition = new Vector3(x, 0.15f, z);
             curb.transform.localScale = new Vector3(0.6f, 0.8f, 30f);
 
-            Material curbMat = new Material(Shader.Find("Standard"));
-            curbMat.color = new Color(0.9f, 0.28f, 0.42f);
-            curb.GetComponent<Renderer>().material = curbMat;
+            curb.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.9f, 0.28f, 0.42f), new Color(1f, 0.6f, 0.7f));
         }
 
         private void CreateStreetLamp(Transform parent, float x, float z)
@@ -146,6 +139,7 @@ namespace KissAndRun
             pole.transform.parent = lamp.transform;
             pole.transform.localPosition = new Vector3(0, 3f, 0);
             pole.transform.localScale = new Vector3(0.12f, 3f, 0.12f);
+            pole.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.25f, 0.25f, 0.28f), Color.gray);
             Destroy(pole.GetComponent<Collider>());
 
             GameObject bulb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -154,11 +148,13 @@ namespace KissAndRun
             bulb.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
             Destroy(bulb.GetComponent<Collider>());
 
-            Material bulbMat = new Material(Shader.Find("Standard"));
-            bulbMat.color = new Color(1f, 0.95f, 0.5f);
-            bulbMat.EnableKeyword("_EMISSION");
-            bulbMat.SetColor("_EmissionColor", new Color(1f, 0.9f, 0.4f));
-            bulb.GetComponent<Renderer>().material = bulbMat;
+            bulb.GetComponent<Renderer>().material = CreateToonMaterial(new Color(1f, 0.95f, 0.5f), Color.white, new Color(1f, 0.9f, 0.4f));
+
+            Light pLight = bulb.AddComponent<Light>();
+            pLight.type = LightType.Point;
+            pLight.color = new Color(1f, 0.92f, 0.7f);
+            pLight.range = 8f;
+            pLight.intensity = 1.2f;
         }
 
         private void PopulateChunk(GameObject chunk, float currentZ)
@@ -236,24 +232,21 @@ namespace KissAndRun
             npcObj.transform.position = new Vector3(x, 1f, z);
             npcObj.transform.rotation = Quaternion.Euler(0, 180, 0);
 
-            Material mat = new Material(Shader.Find("Standard"));
             Color[] npcColors = new Color[] {
                 new Color(1f, 0.4f, 0.7f),  // Pink
                 new Color(0.3f, 0.8f, 1f),  // Cyan
                 new Color(1f, 0.85f, 0.2f), // Yellow
                 new Color(0.6f, 0.3f, 0.9f) // Purple
             };
-            mat.color = npcColors[Random.Range(0, npcColors.Length)];
-            npcObj.GetComponent<Renderer>().material = mat;
+            Color chosenColor = npcColors[Random.Range(0, npcColors.Length)];
+            npcObj.GetComponent<Renderer>().material = CreateToonMaterial(chosenColor, Color.white);
 
             // Head / Hair Sphere
             GameObject hair = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             hair.transform.parent = npcObj.transform;
             hair.transform.localPosition = new Vector3(0, 0.8f, 0);
             hair.transform.localScale = new Vector3(0.9f, 0.7f, 0.9f);
-            Material hairMat = new Material(Shader.Find("Standard"));
-            hairMat.color = new Color(0.2f, 0.12f, 0.05f);
-            hair.GetComponent<Renderer>().material = hairMat;
+            hair.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.2f, 0.12f, 0.05f), new Color(0.4f, 0.3f, 0.2f));
             Destroy(hair.GetComponent<Collider>());
 
             // Glowing Kiss Halo Prompt
@@ -262,11 +255,7 @@ namespace KissAndRun
             halo.transform.parent = npcObj.transform;
             halo.transform.localPosition = new Vector3(0, 1.35f, 0);
             halo.transform.localScale = new Vector3(0.7f, 0.04f, 0.7f);
-            Material haloMat = new Material(Shader.Find("Standard"));
-            haloMat.color = new Color(1f, 0.1f, 0.5f);
-            haloMat.EnableKeyword("_EMISSION");
-            haloMat.SetColor("_EmissionColor", new Color(1f, 0.2f, 0.6f));
-            halo.GetComponent<Renderer>().material = haloMat;
+            halo.GetComponent<Renderer>().material = CreateToonMaterial(new Color(1f, 0.1f, 0.5f), Color.white, new Color(1f, 0.2f, 0.6f));
             Destroy(halo.GetComponent<Collider>());
 
             NPCController npcCtrl = npcObj.AddComponent<NPCController>();
@@ -282,12 +271,7 @@ namespace KissAndRun
             ramp.transform.rotation = Quaternion.Euler(22f, 0, 0);
             ramp.transform.localScale = new Vector3(2.2f, 0.3f, 2.8f);
 
-            Material rampMat = new Material(Shader.Find("Standard"));
-            rampMat.color = new Color(1f, 0.75f, 0.05f);
-            rampMat.EnableKeyword("_EMISSION");
-            rampMat.SetColor("_EmissionColor", new Color(0.7f, 0.5f, 0f));
-            ramp.GetComponent<Renderer>().material = rampMat;
-
+            ramp.GetComponent<Renderer>().material = CreateToonMaterial(new Color(1f, 0.75f, 0.05f), Color.yellow, new Color(0.7f, 0.5f, 0f));
             ramp.GetComponent<Collider>().isTrigger = true;
             ramp.AddComponent<JumpRamp>();
         }
@@ -300,10 +284,7 @@ namespace KissAndRun
             hurdle.transform.position = new Vector3(x, 0.5f, z);
             hurdle.transform.localScale = new Vector3(2.2f, 0.9f, 0.4f);
 
-            Material mat = new Material(Shader.Find("Standard"));
-            mat.color = new Color(0.9f, 0.15f, 0.15f);
-            hurdle.GetComponent<Renderer>().material = mat;
-
+            hurdle.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.9f, 0.15f, 0.15f), Color.white);
             hurdle.GetComponent<Collider>().isTrigger = true;
             Obstacle obs = hurdle.AddComponent<Obstacle>();
             obs.obstacleType = ObstacleType.RoadblockLow;
@@ -317,10 +298,7 @@ namespace KissAndRun
             sign.transform.position = new Vector3(x, 2.1f, z);
             sign.transform.localScale = new Vector3(2.4f, 0.7f, 0.3f);
 
-            Material mat = new Material(Shader.Find("Standard"));
-            mat.color = new Color(0.95f, 0.55f, 0.1f);
-            sign.GetComponent<Renderer>().material = mat;
-
+            sign.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.95f, 0.55f, 0.1f), Color.yellow);
             sign.GetComponent<Collider>().isTrigger = true;
             Obstacle obs = sign.AddComponent<Obstacle>();
             obs.obstacleType = ObstacleType.OverheadBarrier;
@@ -334,10 +312,7 @@ namespace KissAndRun
             crate.transform.position = new Vector3(x, 0.6f, z);
             crate.transform.localScale = new Vector3(1.2f, 1.2f, 1.2f);
 
-            Material mat = new Material(Shader.Find("Standard"));
-            mat.color = new Color(0.6f, 0.4f, 0.2f);
-            crate.GetComponent<Renderer>().material = mat;
-
+            crate.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.6f, 0.4f, 0.2f), new Color(0.8f, 0.6f, 0.3f));
             crate.GetComponent<Collider>().isTrigger = true;
             crate.AddComponent<DominoCrashProp>();
         }
@@ -351,12 +326,7 @@ namespace KissAndRun
             coin.transform.rotation = Quaternion.Euler(90f, 0, 0);
             coin.transform.localScale = new Vector3(0.5f, 0.08f, 0.5f);
 
-            Material mat = new Material(Shader.Find("Standard"));
-            mat.color = new Color(1f, 0.85f, 0.1f);
-            mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", new Color(0.9f, 0.7f, 0.05f));
-            coin.GetComponent<Renderer>().material = mat;
-
+            coin.GetComponent<Renderer>().material = CreateToonMaterial(new Color(1f, 0.85f, 0.1f), Color.white, new Color(0.9f, 0.7f, 0.05f));
             coin.GetComponent<Collider>().isTrigger = true;
             coin.AddComponent<HeartCoin>();
         }
@@ -369,12 +339,7 @@ namespace KissAndRun
             orb.transform.position = pos;
             orb.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
 
-            Material mat = new Material(Shader.Find("Standard"));
-            mat.color = new Color(0.1f, 0.9f, 1f);
-            mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", new Color(0.1f, 0.8f, 1f));
-            orb.GetComponent<Renderer>().material = mat;
-
+            orb.GetComponent<Renderer>().material = CreateToonMaterial(new Color(0.1f, 0.9f, 1f), Color.white, new Color(0.1f, 0.8f, 1f));
             orb.GetComponent<Collider>().isTrigger = true;
             PowerUpItem item = orb.AddComponent<PowerUpItem>();
         }
@@ -387,6 +352,22 @@ namespace KissAndRun
                 activeChunks.RemoveAt(0);
                 Destroy(oldChunk);
             }
+        }
+
+        private Material CreateToonMaterial(Color baseColor, Color rimColor, Color emissionColor = default)
+        {
+            Shader toonShader = Shader.Find("KissAndRun/StylizedToon");
+            if (toonShader == null) toonShader = Shader.Find("Standard");
+
+            Material mat = new Material(toonShader);
+            mat.color = baseColor;
+            if (mat.HasProperty("_RimColor")) mat.SetColor("_RimColor", rimColor);
+            if (emissionColor != default && mat.HasProperty("_EmissionColor"))
+            {
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", emissionColor);
+            }
+            return mat;
         }
     }
 }

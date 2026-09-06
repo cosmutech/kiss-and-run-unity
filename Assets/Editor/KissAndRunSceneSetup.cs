@@ -15,15 +15,25 @@ namespace KissAndRun.Editor
             // 1. Create New Empty Scene
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // 2. Setup Lighting, Warm Cartoon Sun, and Shadows
+            // 2. Setup Lighting, Warm Cartoon Sun, Shadows & Atmospheric Fog
             GameObject sun = new GameObject("Directional Light (Sun)");
             Light lightComp = sun.AddComponent<Light>();
             lightComp.type = LightType.Directional;
-            lightComp.color = new Color(1f, 0.95f, 0.85f);
+            lightComp.color = new Color(1f, 0.96f, 0.88f);
             lightComp.intensity = 1.35f;
             lightComp.shadows = LightShadows.Soft;
-            lightComp.shadowStrength = 0.65f;
+            lightComp.shadowStrength = 0.70f;
             sun.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+
+            // Atmospheric Fog & Ambient Cartoon Lighting
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.ExponentialWithDistance;
+            RenderSettings.fogColor = new Color(0.70f, 0.85f, 1f);
+            RenderSettings.fogDensity = 0.0065f;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.75f, 0.88f, 1f);
+            RenderSettings.ambientEquatorColor = new Color(0.92f, 0.82f, 0.70f);
+            RenderSettings.ambientGroundColor = new Color(0.35f, 0.28f, 0.22f);
 
             // 3. Setup Ground / Road (3-Lanes) with Street Lamps
             GameObject roadHolder = new GameObject("=== TRACK SEGMENTS ===");
@@ -38,10 +48,8 @@ namespace KissAndRun.Editor
             player.transform.position = new Vector3(0f, 1f, 0f);
             player.tag = "Player";
 
-            // Stylized Material
-            Material playerMat = new Material(Shader.Find("Standard"));
-            playerMat.color = new Color(1f, 0.25f, 0.55f);
-            player.GetComponent<Renderer>().material = playerMat;
+            // High-Graphic Stylized Toon Material
+            player.GetComponent<Renderer>().material = CreateStylizedMaterial(new Color(1f, 0.25f, 0.55f), Color.white, new Color(0.2f, 0.05f, 0.1f));
 
             // Character Controller & Movement
             Object.DestroyImmediate(player.GetComponent<Collider>());
@@ -70,9 +78,7 @@ namespace KissAndRun.Editor
             GameObject chaser = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             chaser.name = "Chaser (Police / Angry Guy)";
             chaser.transform.position = new Vector3(0f, 1f, -15f);
-            Material chaserMat = new Material(Shader.Find("Standard"));
-            chaserMat.color = new Color(0.12f, 0.35f, 0.9f);
-            chaser.GetComponent<Renderer>().material = chaserMat;
+            chaser.GetComponent<Renderer>().material = CreateStylizedMaterial(new Color(0.12f, 0.35f, 0.9f), Color.cyan);
             ChaserController chaserCtrl = chaser.AddComponent<ChaserController>();
 
             // 7. Setup Game Managers & Cinematic Directors
@@ -107,7 +113,23 @@ namespace KissAndRun.Editor
             string scenePath = "Assets/Scenes/MainGame.unity";
             EditorSceneManager.SaveScene(scene, scenePath);
             Debug.Log("<color=green><b>[Kiss & Run]</b> Complete High-Graphic 3D Runner Scene successfully generated and saved to: " + scenePath + "</color>");
-            EditorUtility.DisplayDialog("Kiss & Run 3D Scene Ready!", "High-fidelity 3D Runner Scene has been automatically built!\n\nIncludes:\n• 3-Lane Road & Street Lamps\n• Hoverboard Riding & Crash Shield\n• High-Altitude Jetpack Flight\n• Aerial Stunt Tricks (Spins, Flips)\n• Cinematic Bullet-Time Kiss Director (Slow-Mo & Decals)\n• Third-Person Camera Follow & Dynamic Screen Shake\n• Chaser System & Domino Props\n• Character Wardrobe & Customizations\n\nPress PLAY (▶) to test immediately!", "Awesome!");
+            EditorUtility.DisplayDialog("Kiss & Run 3D Scene Ready!", "High-fidelity 3D Runner Scene has been automatically built!\n\nIncludes:\n• 3-Lane Road & Street Lamps\n• Stylized Cel-Shaded Toon Shaders\n• Atmospheric Horizon Fog & Sun Shadows\n• Hoverboard Riding & Crash Shield\n• High-Altitude Jetpack Flight\n• Aerial Stunt Tricks (Spins, Flips)\n• Cinematic Bullet-Time Kiss Director (Slow-Mo & Decals)\n• Third-Person Camera Follow & Dynamic Screen Shake\n• Chaser System & Domino Props\n• Character Wardrobe & Customizations\n\nPress PLAY (▶) to test immediately!", "Awesome!");
+        }
+
+        private static Material CreateStylizedMaterial(Color baseColor, Color rimColor, Color emissionColor = default)
+        {
+            Shader toonShader = Shader.Find("KissAndRun/StylizedToon");
+            if (toonShader == null) toonShader = Shader.Find("Standard");
+
+            Material mat = new Material(toonShader);
+            mat.color = baseColor;
+            if (mat.HasProperty("_RimColor")) mat.SetColor("_RimColor", rimColor);
+            if (emissionColor != default && mat.HasProperty("_EmissionColor"))
+            {
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", emissionColor);
+            }
+            return mat;
         }
 
         private static void CreateDetailedRoadChunk(Transform parent, float zPos)
@@ -122,10 +144,7 @@ namespace KissAndRun.Editor
             road.transform.parent = chunk.transform;
             road.transform.localPosition = new Vector3(0, -0.25f, 15f);
             road.transform.localScale = new Vector3(9f, 0.5f, 30f);
-
-            Material roadMat = new Material(Shader.Find("Standard"));
-            roadMat.color = new Color(0.18f, 0.22f, 0.26f);
-            road.GetComponent<Renderer>().material = roadMat;
+            road.GetComponent<Renderer>().material = CreateStylizedMaterial(new Color(0.18f, 0.22f, 0.26f), new Color(0.4f, 0.45f, 0.5f));
 
             // Lane Divider Dashes
             for (float z = 2.5f; z < 30f; z += 6f)
@@ -151,9 +170,7 @@ namespace KissAndRun.Editor
             stripe.transform.localPosition = new Vector3(x, 0.02f, z);
             stripe.transform.localScale = new Vector3(0.2f, 0.05f, 2.5f);
 
-            Material stripeMat = new Material(Shader.Find("Standard"));
-            stripeMat.color = Color.white;
-            stripe.GetComponent<Renderer>().material = stripeMat;
+            stripe.GetComponent<Renderer>().material = CreateStylizedMaterial(Color.white, Color.white);
             Object.DestroyImmediate(stripe.GetComponent<Collider>());
         }
 
@@ -165,9 +182,7 @@ namespace KissAndRun.Editor
             curb.transform.localPosition = new Vector3(x, 0.15f, z);
             curb.transform.localScale = new Vector3(0.6f, 0.8f, 30f);
 
-            Material curbMat = new Material(Shader.Find("Standard"));
-            curbMat.color = new Color(0.9f, 0.28f, 0.42f);
-            curb.GetComponent<Renderer>().material = curbMat;
+            curb.GetComponent<Renderer>().material = CreateStylizedMaterial(new Color(0.9f, 0.28f, 0.42f), new Color(1f, 0.6f, 0.7f));
         }
 
         private static void CreateStreetLamp(Transform parent, float x, float z)
@@ -188,9 +203,7 @@ namespace KissAndRun.Editor
             bulb.transform.localPosition = new Vector3(x < 0 ? 0.6f : -0.6f, 6.2f, 0);
             bulb.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
 
-            Material bulbMat = new Material(Shader.Find("Standard"));
-            bulbMat.color = Color.yellow;
-            bulb.GetComponent<Renderer>().material = bulbMat;
+            bulb.GetComponent<Renderer>().material = CreateStylizedMaterial(Color.yellow, Color.white, new Color(1f, 0.9f, 0.4f));
 
             Light pLight = bulb.AddComponent<Light>();
             pLight.type = LightType.Point;
